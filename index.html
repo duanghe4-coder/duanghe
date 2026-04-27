@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>biubiu - 一只可爱的小猫</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton:wght@400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        /* 加载屏幕 - 始终显示直到视频准备好 */
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #0a0a0a;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+        
+        .loading-screen.hidden {
+            display: none;
+        }
+        
+        .loading-text {
+            font-family: 'Anton', sans-serif;
+            font-size: 32px;
+            color: #fff;
+        }
+        
+        .loading-status {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+        }
+        
+        /* 视频容器 */
+        .video-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        
+        .video-layer {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            visibility: hidden;
+        }
+        
+        .video-layer.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .video-layer video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* 文案 */
+        .text-container {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            padding: 0 8vw;
+            pointer-events: none;
+        }
+        
+        .text-section {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 8vw;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease;
+        }
+        
+        .text-section.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .text-content { max-width: 600px; }
+        
+        .headline {
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(48px, 8vw, 100px);
+            line-height: 1.05;
+            color: #fff;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+        }
+        
+        .subheadline {
+            font-size: clamp(18px, 2.5vw, 28px);
+            font-weight: 500;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 32px;
+        }
+        
+        .description {
+            font-size: clamp(14px, 1.2vw, 18px);
+            line-height: 1.6;
+            color: rgba(255,255,255,0.6);
+            max-width: 45ch;
+        }
+        
+        .accent { color: #FF6B35; }
+        
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: #fff;
+            color: #0a0a0a;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            pointer-events: auto;
+            margin-top: 40px;
+        }
+        
+        .cta-arrow {
+            width: 24px;
+            height: 24px;
+            background: #FF6B35;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cta-arrow svg { width: 12px; height: 12px; fill: #fff; }
+        
+        /* 统计 */
+        .stats-container {
+            position: fixed;
+            right: 8vw;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+        
+        .stats-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .stat-number {
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(36px, 5vw, 64px);
+            color: #FF6B35;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        
+        /* 导航 */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 24px 8vw;
+            display: flex;
+            justify-content: space-between;
+            z-index: 50;
+            mix-blend-mode: difference;
+        }
+        
+        .nav-logo {
+            font-family: 'Anton', sans-serif;
+            font-size: 24px;
+            color: #fff;
+            text-transform: uppercase;
+        }
+        
+        .nav-links { display: flex; gap: 32px; }
+        .nav-link { font-size: 14px; color: #fff; opacity: 0.7; }
+        
+        /* 进度条 */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        
+        .scroll-progress-bar {
+            height: 100%;
+            background: #FF6B35;
+            width: 0%;
+        }
+        
+        /* 滚动提示 */
+        .scroll-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+        
+        .scroll-hint.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .scroll-hint-text {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+        
+        /* 滚动空间 */
+        .scroll-space {
+            height: 500vh;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .text-section { align-items: flex-end; padding-bottom: 120px; }
+            .stats-container { top: auto; bottom: 180px; transform: none; flex-direction: row; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载屏幕 -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-text">biubiu</div>
+        <div class="loading-status" id="loadingStatus">Loading videos...</div>
+    </div>
+    
+    <!-- 进度条 -->
+    <div class="scroll-progress">
+        <div class="scroll-progress-bar" id="progressBar"></div>
+    </div>
+    
+    <!-- 导航 -->
+    <nav class="nav">
+        <div class="nav-logo">biubiu</div>
+        <div class="nav-links">
+            <a href="#" class="nav-link">About</a>
+            <a href="#" class="nav-link">Gallery</a>
+            <a href="#" class="nav-link">Story</a>
+        </div>
+    </nav>
+    
+    <!-- 视频 -->
+    <div class="video-container">
+        <div class="video-layer" id="layerIntro">
+            <video id="videoIntro" muted playsinline preload="auto"></video>
+        </div>
+        <div class="video-layer" id="layerMain">
+            <video id="videoMain" muted playsinline preload="auto"></video>
+        </div>
+        <div class="video-layer" id="layerEnd">
+            <video id="videoEnd" muted playsinline preload="auto"></video>
+        </div>
+    </div>
+    
+    <!-- 文案 -->
+    <div class="text-container">
+        <div class="text-section" id="text1">
+            <div class="text-content">
+                <h1 class="headline">一个眼神<br><span class="accent">世界突然安静</span></h1>
+                <p class="subheadline">初见 biubiu 的那一刻</p>
+                <p class="description">没有什么特别的理由，只是它抬起头看了你一眼。那眼神清澈得像一汪水，所有的喧嚣都退场了。</p>
+            </div>
+        </div>
+        <div class="text-section" id="text2">
+            <div class="text-content">
+                <h1 class="headline">每一步<br><span class="accent">都是新奇的冒险</span></h1>
+                <p class="subheadline">biubiu 的好奇心</p>
+                <p class="description">沙发下面藏着什么？窗帘后面会不会有惊喜？它用小小的脚步丈量整个世界，每一个角落都是未知的宝藏。</p>
+            </div>
+        </div>
+        <div class="text-section" id="text3">
+            <div class="text-content">
+                <h1 class="headline">孤独<br><span class="accent">也是一种自由</span></h1>
+                <p class="subheadline">安静的午后时光</p>
+                <p class="description">阳光洒在地板上，biubiu 找了个舒服的位置蜷成一团。不需要陪伴，它自己就是完整的宇宙。</p>
+            </div>
+        </div>
+        <div class="text-section" id="text4">
+            <div class="text-content">
+                <h1 class="headline">你需要时<br><span class="accent">我就在身旁</span></h1>
+                <p class="subheadline">无声的默契</p>
+                <p class="description">当你疲惫的时候，它会悄悄走过来，用柔软的身体贴近你。不用说话，一个毛茸茸的存在就足够治愈。</p>
+            </div>
+        </div>
+        <div class="text-section" id="text5">
+            <div class="text-content">
+                <h1 class="headline">再看你一眼<br><span class="accent">心都化了</span></h1>
+                <p class="subheadline">与 biubiu 的约定</p>
+                <p class="description">最后那个回眸，像是一场温柔的告别，也是下一次相遇的约定。你知道，它会一直在那里等你。</p>
+                <button class="cta-button">
+                    Meet biubiu
+                    <span class="cta-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 统计 -->
+    <div class="stats-container" id="stats">
+        <div class="stat-item">
+            <div class="stat-number">100+</div>
+            <div class="stat-label">Photos Taken</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">365</div>
+            <div class="stat-label">Days Together</div>
+        </div>
+    </div>
+    
+    <!-- 滚动提示 -->
+    <div class="scroll-hint visible" id="scrollHint">
+        <div class="scroll-hint-text">Scroll to explore</div>
+    </div>
+    
+    <!-- 滚动空间 -->
+    <div class="scroll-space"></div>
+    
+    <script>
+        // === 元素 ===
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingStatus = document.getElementById('loadingStatus');
+        const progressBar = document.getElementById('progressBar');
+        const scrollHint = document.getElementById('scrollHint');
+        const stats = document.getElementById('stats');
+        
+        const videoIntro = document.getElementById('videoIntro');
+        const videoMain = document.getElementById('videoMain');
+        const videoEnd = document.getElementById('videoEnd');
+        
+        const layerIntro = document.getElementById('layerIntro');
+        const layerMain = document.getElementById('layerMain');
+        const layerEnd = document.getElementById('layerEnd');
+        
+        const texts = ['text1', 'text2', 'text3', 'text4', 'text5'].map(id => document.getElementById(id));
+        
+        // === 视频源 ===
+        const videoSources = {
+            intro: 'intro.mp4',
+            main: 'main.mp4',
+            end: 'end.mp4'
+        };
+        
+        // === 状态 ===
+        let currentPhase = 'intro';
+        let videosLoaded = 0;
+        let isReady = false;
+        let scrollProgress = 0;
+        
+        // === 加载视频 ===
+        async function loadVideos() {
+            const videos = [
+                { el: videoIntro, src: videoSources.intro },
+                { el: videoMain, src: videoSources.main },
+                { el: videoEnd, src: videoSources.end }
+            ];
+            
+            for (const { el, src } of videos) {
+                el.src = src;
+                
+                el.addEventListener('canplaythrough', () => {
+                    videosLoaded++;
+                    loadingStatus.textContent = `Loading: ${videosLoaded}/3`;
+                    
+                    if (videosLoaded >= 3) {
+                        startExperience();
+                    }
+                }, { once: true });
+                
+                el.addEventListener('error', (e) => {
+                    console.error('Video load error:', src, e);
+                    loadingStatus.textContent = `Error loading ${src}`;
+                });
+                
+                el.load();
+            }
+            
+            // 备用：5秒后强制开始
+            setTimeout(() => {
+                if (!isReady) startExperience();
+            }, 5000);
+        }
+        
+        // === 开始体验 ===
+        function startExperience() {
+            if (isReady) return;
+            isReady = true;
+            
+            loadingScreen.classList.add('hidden');
+            
+            // 显示首循环
+            layerIntro.classList.add('visible');
+            videoIntro.loop = true;
+            videoIntro.play().catch(e => console.log('Intro play blocked:', e));
+            
+            // 显示滚动提示
+            scrollHint.classList.add('visible');
+            
+            // 监听滚动
+            window.addEventListener('scroll', handleScroll, { passive: true });
+        }
+        
+        // === 滚动处理 ===
+        function handleScroll() {
+            const scrollTop = window.scrollY;
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            scrollProgress = Math.min(1, Math.max(0, scrollTop / maxScroll));
+            
+            // 更新进度条
+            progressBar.style.width = `${scrollProgress * 100}%`;
+            
+            // 隐藏滚动提示
+            if (scrollProgress > 0.02) {
+                scrollHint.classList.remove('visible');
+            }
+            
+            // 显示统计
+            if (scrollProgress > 0.3) {
+                stats.classList.add('visible');
+            } else {
+                stats.classList.remove('visible');
+            }
+            
+            // 切换视频阶段
+            updatePhase();
+            
+            // 更新文案
+            updateText();
+        }
+        
+        // === 视频阶段切换 ===
+        function updatePhase() {
+            const newPhase = 
+                scrollProgress < 0.05 ? 'intro' :
+                scrollProgress > 0.95 ? 'end' : 'main';
+            
+            if (newPhase === currentPhase) return;
+            currentPhase = newPhase;
+            
+            // 停止所有视频
+            videoIntro.pause();
+            videoMain.pause();
+            videoEnd.pause();
+            
+            // 隐藏所有层
+            layerIntro.classList.remove('visible');
+            layerMain.classList.remove('visible');
+            layerEnd.classList.remove('visible');
+            
+            // 激活当前阶段
+            setTimeout(() => {
+                if (currentPhase === 'intro') {
+                    layerIntro.classList.add('visible');
+                    videoIntro.loop = true;
+                    videoIntro.currentTime = 0;
+                    videoIntro.play().catch(() => {});
+                } else if (currentPhase === 'main') {
+                    layerMain.classList.add('visible');
+                    videoMain.loop = true;
+                    videoMain.currentTime = 0;
+                    videoMain.play().catch(() => {});
+                } else if (currentPhase === 'end') {
+                    layerEnd.classList.add('visible');
+                    videoEnd.loop = true;
+                    videoEnd.currentTime = 0;
+                    videoEnd.play().catch(() => {});
+                }
+            }, 100);
+        }
+        
+        // === 文案切换 ===
+        function updateText() {
+            const normalized = (scrollProgress - 0.05) / (0.95 - 0.05);
+            const index = Math.min(4, Math.floor(Math.max(0, normalized) * 5));
+            
+            texts.forEach((el, i) => {
+                if (i === index) {
+                    el.classList.add('visible');
+                } else {
+                    el.classList.remove('visible');
+                }
+            });
+        }
+        
+        // === 启动 ===
+        loadVideos();
+    </script>
+</body>
+</html>
